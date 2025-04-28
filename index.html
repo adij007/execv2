@@ -1,0 +1,2282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intel 8086 Emulator</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #475569;
+            --light: #f8fafc;
+            --dark: #0f172a;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #ca8a04;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background-color: #f1f5f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        header {
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-top: 0;
+        }
+
+        .emulator-interface {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .emulator-interface {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .input-section, .output-section {
+            padding: 20px;
+            background-color: var(--light);
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            resize: vertical;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-dark);
+        }
+
+        button:disabled {
+            background-color: var(--secondary);
+            cursor: not-allowed;
+        }
+
+        .button-secondary {
+            background-color: var(--secondary);
+        }
+
+        .button-secondary:hover {
+            background-color: #334155;
+        }
+
+        .options-container {
+            margin: 15px 0;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .execution-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        #stepControls {
+            display: none;
+            margin-top: 10px;
+        }
+
+        #stepControls.active {
+            display: flex;
+            gap: 10px;
+        }
+
+        .register-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .register-table th {
+            background-color: var(--primary);
+            color: white;
+            text-align: left;
+            padding: 8px;
+            position: sticky;
+            top: 0;
+        }
+
+        .register-table td {
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .register-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        .register-value {
+            font-weight: bold;
+        }
+
+        .changed {
+            background-color: #e9f7ef;
+            color: var(--success);
+            transition: background-color 0.3s;
+        }
+
+        .execution-history {
+            margin-top: 20px;
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .execution-step {
+            border-bottom: 1px solid var(--border);
+            padding: 10px;
+        }
+
+        .execution-step:last-child {
+            border-bottom: none;
+        }
+
+        .execution-step.current {
+            background-color: #e9f7ef;
+            border-left: 4px solid var(--success);
+        }
+
+        .instruction-display {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .state-display {
+            font-size: 14px;
+        }
+
+        .flag-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .flag-item {
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .flag-true {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .flag-false {
+            background-color: var(--border);
+            color: var(--secondary);
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab.active {
+            border-bottom: 2px solid var(--primary);
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .register-group {
+            margin-bottom: 15px;
+        }
+
+        .register-group-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: var(--secondary);
+        }
+
+        .register-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .register-box {
+            padding: 8px;
+            background-color: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .register-name {
+            font-size: 12px;
+            color: var(--secondary);
+        }
+
+        .memory-section {
+            margin-top: 15px;
+        }
+
+        .log-container {
+            background-color: #1e293b;
+            color: #e2e8f0;
+            font-family: 'Courier New', monospace;
+            padding: 10px;
+            border-radius: 4px;
+            height: 150px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .log-entry {
+            margin: 0;
+            padding: 2px 0;
+        }
+
+        .log-error {
+            color: #f87171;
+        }
+
+        .log-success {
+            color: #4ade80;
+        }
+
+        .log-warning {
+            color: #facc15;
+        }
+
+        .status-bar {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background-color: var(--dark);
+            color: white;
+            border-radius: 4px;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .help-text {
+            font-size: 14px;
+            color: var(--secondary);
+            margin-top: 10px;
+        }
+
+        #exampleSelect {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .examples-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Intel 8086 Emulator</h1>
+        <p>Enter 8086 assembly instructions below and execute them to see the state changes of the CPU.</p>
+    </header>
+
+    <div class="emulator-interface">
+        <div class="input-section">
+            <h2>Assembly Code</h2>
+
+            <div class="examples-section">
+                <label for="exampleSelect">Load example:</label>
+                <select id="exampleSelect">
+                    <option value="">-- Select an example --</option>
+                    <option value="basic">Basic Operations</option>
+                    <option value="arithmetic">Arithmetic Operations</option>
+                    <option value="loops">Loop Example</option>
+                    <option value="conditionals">Conditional Branching</option>
+                </select>
+            </div>
+
+            <textarea id="assemblyCode" placeholder="Enter 8086 assembly code here...
+Example:
+MOV AX, 1234h
+MOV BX, 5678h
+ADD AX, BX
+"></textarea>
+
+            <div class="options-container">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="recordMemory">
+                    <label for="recordMemory">Record Memory States</label>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="stepMode">
+                    <label for="stepMode">Step-by-Step Mode</label>
+                </div>
+            </div>
+
+            <div class="execution-controls">
+                <button id="executeButton">Execute Code</button>
+                <button id="resetButton" class="button-secondary">Reset CPU</button>
+            </div>
+
+            <div id="stepControls">
+                <button id="stepForwardButton">Step Forward</button>
+                <button id="stepBackButton">Step Back</button>
+                <span id="stepCounter">0 / 0</span>
+            </div>
+
+            <div class="log-container" id="logOutput">
+                <p class="log-entry">System initialized. Ready to execute instructions.</p>
+            </div>
+        </div>
+
+        <div class="output-section">
+            <div class="tabs">
+                <div class="tab active" data-tab="current-state">Current State</div>
+                <div class="tab" data-tab="execution-history">Execution History</div>
+                <div class="tab" data-tab="memory-view">Memory View</div>
+            </div>
+
+            <div class="tab-content active" id="current-state">
+                <h3>CPU State</h3>
+
+                <div class="register-group">
+                    <div class="register-group-title">General Purpose Registers</div>
+                    <div class="register-grid" id="gpRegisters">
+                        <!-- Will be filled by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="register-group">
+                    <div class="register-group-title">Segment Registers</div>
+                    <div class="register-grid" id="segmentRegisters">
+                        <!-- Will be filled by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="register-group">
+                    <div class="register-group-title">Pointer and Index Registers</div>
+                    <div class="register-grid" id="pointerRegisters">
+                        <!-- Will be filled by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="register-group">
+                    <div class="register-group-title">Flags</div>
+                    <div class="flag-display" id="flagsDisplay">
+                        <!-- Will be filled by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="status-bar">
+                    <span>Cycle Count: <span id="cycleCount">0</span></span>
+                    <span>CPU Status: <span id="cpuStatus">Ready</span></span>
+                </div>
+            </div>
+
+            <div class="tab-content" id="execution-history">
+                <h3>Execution History</h3>
+                <div class="execution-history" id="historyContainer">
+                    <!-- Will be filled by JavaScript -->
+                </div>
+            </div>
+
+            <div class="tab-content" id="memory-view">
+                <h3>Memory View</h3>
+                <div class="memory-section" id="memoryView">
+                    <p>Memory recording is <span id="memoryStatus">disabled</span>. Enable it in the options to view memory state.</p>
+                    <!-- Will be filled by JavaScript when memory recording is enabled -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Let's implement a complete 8086 emulator with proper parsing and execution
+    class Intel8086Emulator {
+        constructor() {
+            // Initialize registers with getters/setters for 8-bit access
+            this._registers = {
+                _ax: 0x0000, _bx: 0x0000, _cx: 0x0000, _dx: 0x0000,
+                SI: 0x0000, DI: 0x0000, BP: 0x0000, SP: 0xFFFE, // SP traditionally starts near top of segment
+                CS: 0x0000, DS: 0x0000, ES: 0x0000, SS: 0x0000,
+                IP: 0x0100, // Start execution at offset 0x0100
+                FLAGS: 0x0000
+            };
+
+            // 1MB memory
+            this.memory = new Uint8Array(1024 * 1024);
+
+            // Execution state tracking
+            this.stateLog = [];
+            this.running = false;
+            this.cycles = 0;
+
+            // Label map for jumps
+            this.labels = {};
+
+            // Define flag bit positions
+            this.flagBits = {
+                CF: 0,  // Carry Flag
+                PF: 2,  // Parity Flag
+                AF: 4,  // Auxiliary Carry Flag
+                ZF: 6,  // Zero Flag
+                SF: 7,  // Sign Flag
+                TF: 8,  // Trap Flag
+                IF: 9,  // Interrupt Flag
+                DF: 10, // Direction Flag
+                OF: 11  // Overflow Flag
+            };
+        }
+
+        // Register accessors
+        get AX() {
+            return this._registers._ax;
+        }
+
+        set AX(val) {
+            this._registers._ax = val & 0xFFFF;
+        }
+
+        get AH() {
+            return (this._registers._ax >> 8) & 0xFF;
+        }
+
+        set AH(val) {
+            this._registers._ax = (this._registers._ax & 0x00FF) | ((val & 0xFF) << 8);
+        }
+
+        get AL() {
+            return this._registers._ax & 0xFF;
+        }
+
+        set AL(val) {
+            this._registers._ax = (this._registers._ax & 0xFF00) | (val & 0xFF);
+        }
+
+        get BX() {
+            return this._registers._bx;
+        }
+
+        set BX(val) {
+            this._registers._bx = val & 0xFFFF;
+        }
+
+        get BH() {
+            return (this._registers._bx >> 8) & 0xFF;
+        }
+
+        set BH(val) {
+            this._registers._bx = (this._registers._bx & 0x00FF) | ((val & 0xFF) << 8);
+        }
+
+        get BL() {
+            return this._registers._bx & 0xFF;
+        }
+
+        set BL(val) {
+            this._registers._bx = (this._registers._bx & 0xFF00) | (val & 0xFF);
+        }
+
+        get CX() {
+            return this._registers._cx;
+        }
+
+        set CX(val) {
+            this._registers._cx = val & 0xFFFF;
+        }
+
+        get CH() {
+            return (this._registers._cx >> 8) & 0xFF;
+        }
+
+        set CH(val) {
+            this._registers._cx = (this._registers._cx & 0x00FF) | ((val & 0xFF) << 8);
+        }
+
+        get CL() {
+            return this._registers._cx & 0xFF;
+        }
+
+        set CL(val) {
+            this._registers._cx = (this._registers._cx & 0xFF00) | (val & 0xFF);
+        }
+
+        get DX() {
+            return this._registers._dx;
+        }
+
+        set DX(val) {
+            this._registers._dx = val & 0xFFFF;
+        }
+
+        get DH() {
+            return (this._registers._dx >> 8) & 0xFF;
+        }
+
+        set DH(val) {
+            this._registers._dx = (this._registers._dx & 0x00FF) | ((val & 0xFF) << 8);
+        }
+
+        get DL() {
+            return this._registers._dx & 0xFF;
+        }
+
+        set DL(val) {
+            this._registers._dx = (this._registers._dx & 0xFF00) | (val & 0xFF);
+        }
+
+        // Other register accessors
+        getRegister(name) {
+            if (name in this) {
+                return this[name];
+            } else if (name in this._registers) {
+                return this._registers[name];
+            }
+            throw new Error(`Unknown register: ${name}`);
+        }
+
+        setRegister(name, value) {
+            if (name in this) {
+                this[name] = value;
+            } else if (name in this._registers) {
+                this._registers[name] = value & 0xFFFF;
+            } else {
+                throw new Error(`Unknown register: ${name}`);
+            }
+        }
+
+        // Flag operations
+        getFlag(flag) {
+            if (!(flag in this.flagBits)) {
+                throw new Error(`Unknown flag: ${flag}`);
+            }
+            return (this._registers.FLAGS & (1 << this.flagBits[flag])) !== 0;
+        }
+
+        setFlag(flag, value) {
+            if (!(flag in this.flagBits)) {
+                throw new Error(`Unknown flag: ${flag}`);
+            }
+            if (value) {
+                this._registers.FLAGS |= (1 << this.flagBits[flag]);
+            } else {
+                this._registers.FLAGS &= ~(1 << this.flagBits[flag]);
+            }
+        }
+
+        // Memory operations
+        readByte(segment, offset) {
+            const address = ((segment << 4) + offset) & 0xFFFFF; // 20-bit address
+            return this.memory[address];
+        }
+
+        writeByte(segment, offset, value) {
+            const address = ((segment << 4) + offset) & 0xFFFFF;
+            this.memory[address] = value & 0xFF;
+            return true;
+        }
+
+        readWord(segment, offset) {
+            const loByteAddr = ((segment << 4) + offset) & 0xFFFFF;
+            const hiByteAddr = ((segment << 4) + ((offset + 1) & 0xFFFF)) & 0xFFFFF;
+            return this.memory[loByteAddr] | (this.memory[hiByteAddr] << 8);
+        }
+
+        writeWord(segment, offset, value) {
+            const loByteAddr = ((segment << 4) + offset) & 0xFFFFF;
+            const hiByteAddr = ((segment << 4) + ((offset + 1) & 0xFFFF)) & 0xFFFFF;
+            this.memory[loByteAddr] = value & 0xFF;
+            this.memory[hiByteAddr] = (value >> 8) & 0xFF;
+            return true;
+        }
+
+        // First pass: collect labels
+        preprocessCode(code) {
+            const lines = code.split('\n');
+            let lineNumber = 0;
+
+            // Clean up the code and extract labels
+            for (let i = 0; i < lines.length; i++) {
+                // Remove comments
+                let line = lines[i];
+                const commentIndex = line.indexOf(';');
+                if (commentIndex !== -1) {
+                    line = line.substring(0, commentIndex);
+                }
+
+                line = line.trim();
+                lines[i] = line;
+
+                // Skip empty lines
+                if (line === '') {
+                    continue;
+                }
+
+                // Check for label
+                if (line.endsWith(':')) {
+                    const labelName = line.slice(0, -1).trim();
+                    this.labels[labelName] = lineNumber;
+                    continue;
+                }
+
+                // Count this as an executable instruction
+                lineNumber++;
+            }
+
+            return lines;
+        }
+
+        // Parse a value which could be a register, immediate, or memory reference
+        parseOperand(operand) {
+            // Clean up the operand
+            operand = operand.trim();
+
+            // Check if it's a register
+            const registerNames = [
+                'AX', 'BX', 'CX', 'DX', 'SI', 'DI', 'BP', 'SP',
+                'CS', 'DS', 'ES', 'SS', 'IP', 'FLAGS',
+                'AH', 'AL', 'BH', 'BL', 'CH', 'CL', 'DH', 'DL'
+            ];
+
+            if (registerNames.includes(operand.toUpperCase())) {
+                return {type: 'register', value: operand.toUpperCase()};
+            }
+
+            // Check if it's a memory reference [reg] or [reg+offset]
+            if (operand.startsWith('[') && operand.endsWith(']')) {
+                const memExpr = operand.slice(1, -1).trim();
+                // For simplicity, we'll just handle [reg] format here
+                if (registerNames.includes(memExpr.toUpperCase())) {
+                    return {type: 'memory', base: memExpr.toUpperCase()};
+                }
+                // TODO: Implement more complex memory addressing modes
+            }
+
+            // Check if it's a hex immediate value
+            if (operand.endsWith('h') || operand.endsWith('H')) {
+                const hexValue = parseInt(operand.slice(0, -1), 16);
+                return {type: 'immediate', value: hexValue};
+            }
+
+            // Check if it's a decimal immediate value
+            if (!isNaN(parseInt(operand))) {
+                return {type: 'immediate', value: parseInt(operand)};
+            }
+
+            // Check if it's a label
+            if (operand in this.labels) {
+                return {type: 'label', value: this.labels[operand]};
+            }
+
+            throw new Error(`Unable to parse operand: ${operand}`);
+        }
+
+        // Parse and execute a single instruction
+        executeInstruction(instruction) {
+            // Clean the instruction
+            instruction = instruction.trim();
+            if (instruction === '') return;
+
+            // Remove any comments
+            const commentIndex = instruction.indexOf(';');
+            if (commentIndex !== -1) {
+                instruction = instruction.substring(0, commentIndex).trim();
+            }
+
+            // Split into opcode and operands, respecting commas inside brackets
+            let opcode = '';
+            let operandsText = '';
+
+            const spaceIndex = instruction.indexOf(' ');
+            if (spaceIndex === -1) {
+                opcode = instruction;
+            } else {
+                opcode = instruction.substring(0, spaceIndex).trim();
+                operandsText = instruction.substring(spaceIndex).trim();
+            }
+
+            // Parse operands, respecting memory references with []
+            const operands = [];
+            let currentOperand = '';
+            let inBrackets = false;
+
+            for (let i = 0; i < operandsText.length; i++) {
+                const char = operandsText[i];
+
+                if (char === '[') {
+                    inBrackets = true;
+                    currentOperand += char;
+                } else if (char === ']') {
+                    inBrackets = false;
+                    currentOperand += char;
+                } else if (char === ',' && !inBrackets) {
+                    operands.push(currentOperand.trim());
+                    currentOperand = '';
+                } else {
+                    currentOperand += char;
+                }
+            }
+
+            if (currentOperand.trim() !== '') {
+                operands.push(currentOperand.trim());
+            }
+
+            // Execute the instruction
+            switch (opcode.toUpperCase()) {
+                case 'MOV': {
+                    if (operands.length !== 2) throw new Error('MOV requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let value;
+
+                    // Get source value
+                    if (src.type === 'register') {
+                        value = this.getRegister(src.value);
+                    } else if (src.type === 'immediate') {
+                        value = src.value;
+                    } else if (src.type === 'memory') {
+                        value = this.readWord(this._registers.DS, this.getRegister(src.base));
+                    } else {
+                        throw new Error(`Unsupported source operand type: ${src.type}`);
+                    }
+
+                    // Set destination value
+                    if (dest.type === 'register') {
+                        this.setRegister(dest.value, value);
+                    } else if (dest.type === 'memory') {
+                        this.writeWord(this._registers.DS, this.getRegister(dest.base), value);
+                    } else {
+                        throw new Error(`Unsupported destination operand type: ${dest.type}`);
+                    }
+                    break;
+                }
+
+                case 'ADD': {
+                    if (operands.length !== 2) throw new Error('ADD requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let srcValue;
+
+                    // Get source value
+                    if (src.type === 'register') {
+                        srcValue = this.getRegister(src.value);
+                    } else if (src.type === 'immediate') {
+                        srcValue = src.value;
+                    } else if (src.type === 'memory') {
+                        srcValue = this.readWord(this._registers.DS, this.getRegister(src.base));
+                    } else {
+                        throw new Error(`Unsupported source operand type: ${src.type}`);
+                    }
+
+                    // Get destination value, add, and set
+                    if (dest.type === 'register') {
+                        const destValue = this.getRegister(dest.value);
+                        const result = (destValue + srcValue) & 0xFFFF;
+
+                        // Set flags
+                        this.setFlag('CF', (destValue + srcValue) > 0xFFFF);
+                        this.setFlag('ZF', result === 0);
+                        this.setFlag('SF', (result & 0x8000) !== 0);
+                        // Simplified overflow detection
+                        this.setFlag('OF',
+                            ((destValue & 0x8000) === (srcValue & 0x8000)) &&
+                            ((result & 0x8000) !== (destValue & 0x8000))
+                        );
+
+                        this.setRegister(dest.value, result);
+                    } else {
+                        throw new Error(`Unsupported destination operand type for ADD: ${dest.type}`);
+                    }
+                    break;
+                }
+
+                case 'SUB': {
+                    if (operands.length !== 2) throw new Error('SUB requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let srcValue;
+
+                    // Get source value
+                    if (src.type === 'register') {
+                        srcValue = this.getRegister(src.value);
+                    } else if (src.type === 'immediate') {
+                        srcValue = src.value;
+                    } else if (src.type === 'memory') {
+                        srcValue = this.readWord(this._registers.DS, this.getRegister(src.base));
+                    } else {
+                        throw new Error(`Unsupported source operand type: ${src.type}`);
+                    }
+
+                    // Get destination value, subtract, and set
+                    if (dest.type === 'register') {
+                        const destValue = this.getRegister(dest.value);
+                        const result = (destValue - srcValue) & 0xFFFF;
+
+                        // Set flags
+                        this.setFlag('CF', destValue < srcValue);
+                        this.setFlag('ZF', result === 0);
+                        this.setFlag('SF', (result & 0x8000) !== 0);
+                        // Simplified overflow detection for subtraction
+                        this.setFlag('OF',
+                            ((destValue & 0x8000) !== (srcValue & 0x8000)) &&
+                            ((result & 0x8000) !== (destValue & 0x8000))
+                        );
+
+                        this.setRegister(dest.value, result);
+                    } else {
+                        throw new Error(`Unsupported destination operand type for SUB: ${dest.type}`);
+                    }
+                    break;
+                }
+
+                case 'JMP': {
+                    if (operands.length !== 1) throw new Error('JMP requires one operand');
+
+                    const target = this.parseOperand(operands[0]);
+
+                    if (target.type === 'label') {
+                        this._registers.IP = target.value;
+                    } else if (target.type === 'immediate') {
+                        this._registers.IP = target.value;
+                    } else {
+                        throw new Error(`Unsupported jump target type: ${target.type}`);
+                    }
+                    break;
+                }
+
+                case 'CMP': {
+                    if (operands.length !== 2) throw new Error('CMP requires two operands');
+
+                    const left = this.parseOperand(operands[0]);
+                    const right = this.parseOperand(operands[1]);
+
+                    let leftValue, rightValue;
+
+                    // Get left operand value
+                    if (left.type === 'register') {
+                        leftValue = this.getRegister(left.value);
+                    } else if (left.type === 'immediate') {
+                        leftValue = left.value;
+                    } else if (left.type === 'memory') {
+                        leftValue = this.readWord(this._registers.DS, this.getRegister(left.base));
+                    } else {
+                        throw new Error(`Unsupported left operand type: ${left.type}`);
+                    }
+
+                    // Get right operand value
+                    if (right.type === 'register') {
+                        rightValue = this.getRegister(right.value);
+                    } else if (right.type === 'immediate') {
+                        rightValue = right.value;
+                    } else if (right.type === 'memory') {
+                        rightValue = this.readWord(this._registers.DS, this.getRegister(right.base));
+                    } else {
+                        throw new Error(`Unsupported right operand type: ${right.type}`);
+                    }
+
+                    // Calculate the comparison result without changing the operands
+                    const result = (leftValue - rightValue) & 0xFFFF;
+
+                    // Set flags
+                    this.setFlag('CF', leftValue < rightValue);
+                    this.setFlag('ZF', result === 0);
+                    this.setFlag('SF', (result & 0x8000) !== 0);
+                    // Simplified overflow detection for comparison
+                    this.setFlag('OF',
+                        ((leftValue & 0x8000) !== (rightValue & 0x8000)) &&
+                        ((result & 0x8000) !== (leftValue & 0x8000))
+                    );
+
+                    break;
+                }
+
+                case 'JZ':
+                case 'JE': {
+                    if (operands.length !== 1) throw new Error(`${opcode} requires one operand`);
+
+                    if (this.getFlag('ZF')) {
+                        const target = this.parseOperand(operands[0]);
+
+                        if (target.type === 'label') {
+                            this._registers.IP = target.value;
+                        } else if (target.type === 'immediate') {
+                            this._registers.IP = target.value;
+                        } else {
+                            throw new Error(`Unsupported jump target type: ${target.type}`);
+                        }
+                    }
+
+                    break;
+                }
+
+                case 'JNZ':
+                case 'JNE': {
+                    if (operands.length !== 1) throw new Error(`${opcode} requires one operand`);
+
+                    if (!this.getFlag('ZF')) {
+                        const target = this.parseOperand(operands[0]);
+
+                        if (target.type === 'label') {
+                            this._registers.IP = target.value;
+                        } else if (target.type === 'immediate') {
+                            this._registers.IP = target.value;
+                        } else {
+                            throw new Error(`Unsupported jump target type: ${target.type}`);
+                        }
+                    }
+
+                    break;
+                }
+
+                case 'JC': {
+                    if (operands.length !== 1) throw new Error('JC requires one operand');
+
+                    if (this.getFlag('CF')) {
+                        const target = this.parseOperand(operands[0]);
+
+                        if (target.type === 'label') {
+                            this._registers.IP = target.value;
+                        } else if (target.type === 'immediate') {
+                            this._registers.IP = target.value;
+                        } else {
+                            throw new Error(`Unsupported jump target type: ${target.type}`);
+                        }
+                    }
+
+                    break;
+                }
+
+                case 'JNC': {
+                    if (operands.length !== 1) throw new Error('JNC requires one operand');
+
+                    if (!this.getFlag('CF')) {
+                        const target = this.parseOperand(operands[0]);
+
+                        if (target.type === 'label') {
+                            this._registers.IP = target.value;
+                        } else if (target.type === 'immediate') {
+                            this._registers.IP = target.value;
+                        } else {
+                            throw new Error(`Unsupported jump target type: ${target.type}`);
+                        }
+                    }
+
+                    break;
+                }
+
+                case 'INC': {
+                    if (operands.length !== 1) throw new Error('INC requires one operand');
+
+                    const operand = this.parseOperand(operands[0]);
+
+                    if (operand.type === 'register') {
+                        const value = this.getRegister(operand.value);
+                        const result = (value + 1) & 0xFFFF;
+
+                        // Set flags (note: INC doesn't affect carry flag)
+                        this.setFlag('ZF', result === 0);
+                        this.setFlag('SF', (result & 0x8000) !== 0);
+                        // Simplified overflow detection
+                        this.setFlag('OF', value === 0x7FFF); // Overflow if 0x7FFF + 1 = 0x8000 (sign bit changes)
+
+                        this.setRegister(operand.value, result);
+                    } else {
+                        throw new Error(`Unsupported operand type for INC: ${operand.type}`);
+                    }
+
+                    break;
+                }
+
+                case 'DEC': {
+                    if (operands.length !== 1) throw new Error('DEC requires one operand');
+
+                    const operand = this.parseOperand(operands[0]);
+
+                    if (operand.type === 'register') {
+                        const value = this.getRegister(operand.value);
+                        const result = (value - 1) & 0xFFFF;
+
+                        // Set flags (note: DEC doesn't affect carry flag)
+                        this.setFlag('ZF', result === 0);
+                        this.setFlag('SF', (result & 0x8000) !== 0);
+                        // Simplified overflow detection
+                        this.setFlag('OF', value === 0x8000); // Overflow if 0x8000 - 1 = 0x7FFF (sign bit changes)
+
+                        this.setRegister(operand.value, result);
+                    } else {
+                        throw new Error(`Unsupported operand type for DEC: ${operand.type}`);
+                    }
+
+                    break;
+                }
+
+                case 'AND': {
+                    if (operands.length !== 2) throw new Error('AND requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let srcValue;
+
+                    // Get source value
+                    if (src.type === 'register') {
+                        srcValue = this.getRegister(src.value);
+                    } else if (src.type === 'immediate') {
+                        srcValue = src.value;
+                    } else if (src.type === 'memory') {
+                        srcValue = this.readWord(this._registers.DS, this.getRegister(src.base));
+                    } else {
+                        throw new Error(`Unsupported source operand type: ${src.type}`);
+                    }
+
+                    // Get destination value, perform AND, and set
+                    if (dest.type === 'register') {
+                        const destValue = this.getRegister(dest.value);
+                        const result = destValue & srcValue;
+
+                        // Set flags
+                        this.setFlag('CF', false); // Always cleared
+                        this.setFlag('OF', false); // Always cleared
+                        this.setFlag('ZF', result === 0);
+                        this.setFlag('SF', (result & 0x8000) !== 0);
+
+                        this.setRegister(dest.value, result);
+                    } else {
+                        throw new Error(`Unsupported destination operand type for AND: ${dest.type}`);
+                    }
+
+                    break;
+                }
+
+                case 'OR': {
+                    if (operands.length !== 2) throw new Error('OR requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let srcValue;
+
+                    // Get source value
+                    if (src.type === 'register') {
+                        srcValue = this.getRegister(src.value);
+                    } else if (src.type === 'immediate') {
+                        srcValue = src.value;
+                    } else if (src.type === 'memory') {
+                        srcValue = this.readWord(this._registers.DS, this.getRegister(src.base));
+                    } else {
+                        throw new Error(`Unsupported source operand type: ${src.type}`);
+                    }
+
+                    // Get destination value, perform OR, and set
+                    if (dest.type === 'register') {
+                        const destValue = this.getRegister(dest.value);
+                        const result = destValue | srcValue;
+
+                        // Set flags
+                        this.setFlag('CF', false); // Always cleared
+                        this.setFlag('OF', false); // Always cleared
+                        this.setFlag('ZF', result === 0);
+                        this.setFlag('SF', (result & 0x8000) !== 0);
+
+                        this.setRegister(dest.value, result);
+                    } else {
+                        throw new Error(`Unsupported destination operand type for OR: ${dest.type}`);
+                    }
+
+                    break;
+                }
+
+                case 'XOR': {
+                    if (operands.length !== 2) throw new Error('XOR requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let srcValue;
+
+                    // Get source value
+                    if (src.type === 'register') {
+                        srcValue = this.getRegister(src.value);
+                    } else if (src.type === 'immediate') {
+                        srcValue = src.value;
+                    } else if (src.type === 'memory') {
+                        srcValue = this.readWord(this._registers.DS, this.getRegister(src.base));
+                    } else {
+                        throw new Error(`Unsupported source operand type: ${src.type}`);
+                    }
+
+                    // Get destination value, perform XOR, and set
+                    if (dest.type === 'register') {
+                        const destValue = this.getRegister(dest.value);
+                        const result = destValue ^ srcValue;
+
+                        // Set flags
+                        this.setFlag('CF', false); // Always cleared
+                        this.setFlag('OF', false); // Always cleared
+                        this.setFlag('ZF', result === 0);
+                        this.setFlag('SF', (result & 0x8000) !== 0);
+
+                        this.setRegister(dest.value, result);
+                    } else {
+                        throw new Error(`Unsupported destination operand type for XOR: ${dest.type}`);
+                    }
+
+                    break;
+                }
+
+                case 'NOT': {
+                    if (operands.length !== 1) throw new Error('NOT requires one operand');
+
+                    const operand = this.parseOperand(operands[0]);
+
+                    if (operand.type === 'register') {
+                        const value = this.getRegister(operand.value);
+                        const result = (~value) & 0xFFFF;
+
+                        this.setRegister(operand.value, result);
+
+                        // NOT doesn't affect flags
+                    } else {
+                        throw new Error(`Unsupported operand type for NOT: ${operand.type}`);
+                    }
+
+                    break;
+                }
+
+                case 'SHL': {
+                    if (operands.length !== 2) throw new Error('SHL requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let count;
+
+                    // Get shift count
+                    if (src.type === 'immediate') {
+                        count = src.value;
+                    } else if (src.type === 'register' && src.value === 'CL') {
+                        count = this.CL;
+                    } else {
+                        throw new Error(`SHL shift count must be immediate or CL`);
+                    }
+
+                    if (dest.type === 'register') {
+                        let value = this.getRegister(dest.value);
+
+                        // The last bit shifted out goes into CF
+                        if (count > 0) {
+                            this.setFlag('CF', ((value << (count - 1)) & 0x8000) !== 0);
+
+                            value = (value << count) & 0xFFFF;
+
+                            // Set other flags
+                            this.setFlag('ZF', value === 0);
+                            this.setFlag('SF', (value & 0x8000) !== 0);
+                            // OF is set if the sign bit changes
+                            this.setFlag('OF', ((value << 1) & 0x8000) !== (value & 0x8000));
+
+                            this.setRegister(dest.value, value);
+                        }
+                    } else {
+                        throw new Error(`Unsupported operand type for SHL: ${dest.type}`);
+                    }
+
+                    break;
+                }
+
+                case 'SHR': {
+                    if (operands.length !== 2) throw new Error('SHR requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let count;
+
+                    // Get shift count
+                    if (src.type === 'immediate') {
+                        count = src.value;
+                    } else if (src.type === 'register' && src.value === 'CL') {
+                        count = this.CL;
+                    } else {
+                        throw new Error(`SHR shift count must be immediate or CL`);
+                    }
+
+                    if (dest.type === 'register') {
+                        let value = this.getRegister(dest.value);
+                        const originalValue = value;
+
+                        // The last bit shifted out goes into CF
+                        if (count > 0) {
+                            this.setFlag('CF', ((value >> (count - 1)) & 0x0001) !== 0);
+
+                            value = (value >>> count) & 0xFFFF;
+
+                            // Set other flags
+                            this.setFlag('ZF', value === 0);
+                            this.setFlag('SF', (value & 0x8000) !== 0);
+                            // OF is set to the MSB of the original operand for shift count of 1
+                            if (count === 1) {
+                                this.setFlag('OF', (originalValue & 0x8000) !== 0);
+                            }
+
+                            this.setRegister(dest.value, value);
+                        }
+                    } else if (dest.type === 'memory') {
+                        let value = this.readMemory(dest.segment, dest.offset, dest.size);
+                        const originalValue = value;
+
+                        if (count > 0) {
+                            this.setFlag('CF', ((value >> (count - 1)) & 0x0001) !== 0);
+
+                            value = (value >>> count) & (dest.size === 1 ? 0xFF : 0xFFFF);
+
+                            // Set other flags
+                            this.setFlag('ZF', value === 0);
+                            this.setFlag('SF', dest.size === 1 ? (value & 0x80) !== 0 : (value & 0x8000) !== 0);
+
+                            // OF is set to the MSB of the original operand for shift count of 1
+                            if (count === 1) {
+                                this.setFlag('OF', dest.size === 1 ? (originalValue & 0x80) !== 0 : (originalValue & 0x8000) !== 0);
+                            }
+
+                            this.writeMemory(dest.segment, dest.offset, value, dest.size);
+                        }
+                    } else {
+                        throw new Error(`Unsupported operand type for SHR: ${dest.type}`);
+                    }
+
+                    break;
+                }
+
+                case 'SAR': {
+                    if (operands.length !== 2) throw new Error('SAR requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let count;
+
+                    // Get shift count
+                    if (src.type === 'immediate') {
+                        count = src.value;
+                    } else if (src.type === 'register' && src.value === 'CL') {
+                        count = this.CL;
+                    } else {
+                        throw new Error(`SAR shift count must be immediate or CL`);
+                    }
+
+                    if (dest.type === 'register') {
+                        let value = this.getRegister(dest.value);
+                        const originalValue = value;
+                        const signBit = value & 0x8000;
+
+                        // The last bit shifted out goes into CF
+                        if (count > 0) {
+                            this.setFlag('CF', ((value >> (count - 1)) & 0x0001) !== 0);
+
+                            // Perform arithmetic shift (preserve sign bit)
+                            value = (value >> count) & 0xFFFF;
+
+                            // Restore sign bits if the original value was negative
+                            if (signBit) {
+                                // Create a mask with 1s in the positions that should be filled with sign bit
+                                const mask = (0xFFFF << (16 - count)) & 0xFFFF;
+                                value |= mask;
+                            }
+
+                            // Set other flags
+                            this.setFlag('ZF', value === 0);
+                            this.setFlag('SF', (value & 0x8000) !== 0);
+                            // OF is cleared for shifts greater than 1, for shift of 1 it's cleared as sign doesn't change in SAR
+                            if (count === 1) {
+                                this.setFlag('OF', false);
+                            }
+
+                            this.setRegister(dest.value, value);
+                        }
+                    } else if (dest.type === 'memory') {
+                        let value = this.readMemory(dest.segment, dest.offset, dest.size);
+                        const originalValue = value;
+                        const signBit = dest.size === 1 ? (value & 0x80) : (value & 0x8000);
+                        const sizeMask = dest.size === 1 ? 0xFF : 0xFFFF;
+                        const signMask = dest.size === 1 ? 0x80 : 0x8000;
+
+                        if (count > 0) {
+                            this.setFlag('CF', ((value >> (count - 1)) & 0x0001) !== 0);
+
+                            // Perform arithmetic shift (preserve sign bit)
+                            value = (value >> count) & sizeMask;
+
+                            // Restore sign bits if the original value was negative
+                            if (signBit) {
+                                // Create a mask with 1s in the positions that should be filled with sign bit
+                                const mask = (sizeMask << ((dest.size * 8) - count)) & sizeMask;
+                                value |= mask;
+                            }
+
+                            // Set other flags
+                            this.setFlag('ZF', value === 0);
+                            this.setFlag('SF', (value & signMask) !== 0);
+                            // OF is cleared for shifts greater than 1, for shift of 1 it's cleared as sign doesn't change in SAR
+                            if (count === 1) {
+                                this.setFlag('OF', false);
+                            }
+
+                            this.writeMemory(dest.segment, dest.offset, value, dest.size);
+                        }
+                    } else {
+                        throw new Error(`Unsupported operand type for SAR: ${dest.type}`);
+                    }
+
+                    break;
+                }
+
+                case 'ROL': {
+                    if (operands.length !== 2) throw new Error('ROL requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let count;
+
+                    // Get rotation count
+                    if (src.type === 'immediate') {
+                        count = src.value % 16; // For 16-bit values, rotations repeat after 16 times
+                    } else if (src.type === 'register' && src.value === 'CL') {
+                        count = this.CL % 16;
+                    } else {
+                        throw new Error(`ROL rotation count must be immediate or CL`);
+                    }
+
+                    if (dest.type === 'register') {
+                        let value = this.getRegister(dest.value);
+                        const sizeMask = 0xFFFF;
+
+                        if (count > 0) {
+                            // Perform the rotation
+                            value = ((value << count) | (value >>> (16 - count))) & sizeMask;
+
+                            // Set CF to the least significant bit (which was rotated from most significant position)
+                            this.setFlag('CF', (value & 0x01) !== 0);
+
+                            // OF is set if the sign bit changes (for count=1)
+                            if (count === 1) {
+                                this.setFlag('OF', ((value & 0x8000) !== 0) !== ((value & 0x4000) !== 0));
+                            }
+
+                            this.setRegister(dest.value, value);
+                        }
+                    } else if (dest.type === 'memory') {
+                        let value = this.readMemory(dest.segment, dest.offset, dest.size);
+                        const sizeBits = dest.size * 8;
+                        const sizeMask = dest.size === 1 ? 0xFF : 0xFFFF;
+
+                        // Adjust count for byte operations
+                        if (dest.size === 1) {
+                            count = count % 8;
+                        }
+
+                        if (count > 0) {
+                            // Perform the rotation
+                            value = ((value << count) | (value >>> (sizeBits - count))) & sizeMask;
+
+                            // Set CF to the least significant bit (which was rotated from most significant position)
+                            this.setFlag('CF', (value & 0x01) !== 0);
+
+                            // OF is set if the sign bit changes (for count=1)
+                            if (count === 1) {
+                                const signMask = dest.size === 1 ? 0x80 : 0x8000;
+                                const nextBit = dest.size === 1 ? 0x40 : 0x4000;
+                                this.setFlag('OF', ((value & signMask) !== 0) !== ((value & nextBit) !== 0));
+                            }
+
+                            this.writeMemory(dest.segment, dest.offset, value, dest.size);
+                        }
+                    } else {
+                        throw new Error(`Unsupported operand type for ROL: ${dest.type}`);
+                    }
+
+                    break;
+                }
+
+                case 'ROR': {
+                    if (operands.length !== 2) throw new Error('ROR requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let count;
+
+                    // Get rotation count
+                    if (src.type === 'immediate') {
+                        count = src.value % 16; // For 16-bit values, rotations repeat after 16 times
+                    } else if (src.type === 'register' && src.value === 'CL') {
+                        count = this.CL % 16;
+                    } else {
+                        throw new Error(`ROR rotation count must be immediate or CL`);
+                    }
+
+                    if (dest.type === 'register') {
+                        let value = this.getRegister(dest.value);
+                        const sizeMask = 0xFFFF;
+
+                        if (count > 0) {
+                            // Perform the rotation
+                            value = ((value >>> count) | (value << (16 - count))) & sizeMask;
+
+                            // Set CF to the most significant bit (which was rotated from least significant position)
+                            this.setFlag('CF', (value & 0x8000) !== 0);
+
+                            // OF is set if the two most significant bits differ (for count=1)
+                            if (count === 1) {
+                                this.setFlag('OF', ((value & 0x8000) !== 0) !== ((value & 0x4000) !== 0));
+                            }
+
+                            this.setRegister(dest.value, value);
+                        }
+                    } else if (dest.type === 'memory') {
+                        let value = this.readMemory(dest.segment, dest.offset, dest.size);
+                        const sizeBits = dest.size * 8;
+                        const sizeMask = dest.size === 1 ? 0xFF : 0xFFFF;
+                        const signMask = dest.size === 1 ? 0x80 : 0x8000;
+
+                        // Adjust count for byte operations
+                        if (dest.size === 1) {
+                            count = count % 8;
+                        }
+
+                        if (count > 0) {
+                            // Perform the rotation
+                            value = ((value >>> count) | (value << (sizeBits - count))) & sizeMask;
+
+                            // Set CF to the most significant bit (which was rotated from least significant position)
+                            this.setFlag('CF', (value & signMask) !== 0);
+
+                            // OF is set if the two most significant bits differ (for count=1)
+                            if (count === 1) {
+                                const nextBit = dest.size === 1 ? 0x40 : 0x4000;
+                                this.setFlag('OF', ((value & signMask) !== 0) !== ((value & nextBit) !== 0));
+                            }
+
+                            this.writeMemory(dest.segment, dest.offset, value, dest.size);
+                        }
+                    } else {
+                        throw new Error(`Unsupported operand type for ROR: ${dest.type}`);
+                    }
+
+                    break;
+                }
+
+                case 'RCL': {
+                    if (operands.length !== 2) throw new Error('RCL requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let count;
+
+                    // Get rotation count
+                    if (src.type === 'immediate') {
+                        count = src.value % 17; // For 16-bit values with CF, rotations repeat after 17 times
+                    } else if (src.type === 'register' && src.value === 'CL') {
+                        count = this.CL % 17;
+                    } else {
+                        throw new Error(`RCL rotation count must be immediate or CL`);
+                    }
+
+                    if (dest.type === 'register') {
+                        let value = this.getRegister(dest.value);
+                        const sizeMask = 0xFFFF;
+                        const cf = this.getFlag('CF') ? 1 : 0;
+
+                        if (count > 0) {
+                            for (let i = 0; i < count; i++) {
+                                // Save the bit that will be shifted out to CF
+                                const newCf = (value & 0x8000) !== 0 ? 1 : 0;
+
+                                // Shift left and bring in old CF
+                                value = ((value << 1) | cf) & sizeMask;
+
+                                // Update CF with the bit that was shifted out
+                                this.setFlag('CF', newCf === 1);
+                            }
+
+                            // OF is set if the sign bit changed after the last rotation
+                            if (count === 1) {
+                                this.setFlag('OF', ((value & 0x8000) !== 0) !== this.getFlag('CF'));
+                            }
+
+                            this.setRegister(dest.value, value);
+                        }
+                    } else if (dest.type === 'memory') {
+                        let value = this.readMemory(dest.segment, dest.offset, dest.size);
+                        const sizeBits = dest.size * 8;
+                        const sizeMask = dest.size === 1 ? 0xFF : 0xFFFF;
+                        const signMask = dest.size === 1 ? 0x80 : 0x8000;
+
+                        // Adjust count for byte operations
+                        if (dest.size === 1) {
+                            count = count % 9; // 8 bits + CF
+                        }
+
+                        if (count > 0) {
+                            const cf = this.getFlag('CF') ? 1 : 0;
+
+                            for (let i = 0; i < count; i++) {
+                                // Save the bit that will be shifted out to CF
+                                const newCf = (value & signMask) !== 0 ? 1 : 0;
+
+                                // Shift left and bring in old CF
+                                value = ((value << 1) | cf) & sizeMask;
+
+                                // Update CF with the bit that was shifted out
+                                this.setFlag('CF', newCf === 1);
+                            }
+
+                            // OF is set if the sign bit changed after the last rotation
+                            if (count === 1) {
+                                this.setFlag('OF', ((value & signMask) !== 0) !== this.getFlag('CF'));
+                            }
+
+                            this.writeMemory(dest.segment, dest.offset, value, dest.size);
+                        }
+                    } else {
+                        throw new Error(`Unsupported operand type for RCL: ${dest.type}`);
+                    }
+
+                    break;
+                }
+
+                case 'RCR': {
+                    if (operands.length !== 2) throw new Error('RCR requires two operands');
+
+                    const dest = this.parseOperand(operands[0]);
+                    const src = this.parseOperand(operands[1]);
+
+                    let count;
+
+                    // Get rotation count
+                    if (src.type === 'immediate') {
+                        count = src.value % 17; // For 16-bit values with CF, rotations repeat after 17 times
+                    } else if (src.type === 'register' && src.value === 'CL') {
+                        count = this.CL % 17;
+                    } else {
+                        throw new Error(`RCR rotation count must be immediate or CL`);
+                    }
+
+                    if (dest.type === 'register') {
+                        let value = this.getRegister(dest.value);
+                        const sizeMask = 0xFFFF;
+                        const originalMsb = (value & 0x8000) !== 0;
+
+                        if (count > 0) {
+                            for (let i = 0; i < count; i++) {
+                                const cf = this.getFlag('CF') ? 1 : 0;
+
+                                // Save the bit that will be shifted out to CF
+                                const newCf = value & 0x01;
+
+                                // Shift right and bring in old CF
+                                value = ((value >>> 1) | (cf << 15)) & sizeMask;
+
+                                // Update CF with the bit that was shifted out
+                                this.setFlag('CF', newCf === 1);
+                            }
+
+                            // OF is set if the sign bit changed after the first rotation
+                            if (count === 1) {
+                                this.setFlag('OF', originalMsb !== ((value & 0x8000) !== 0));
+                            }
+
+                            this.setRegister(dest.value, value);
+                        }
+                    } else if (dest.type === 'memory') {
+                        let value = this.readMemory(dest.segment, dest.offset, dest.size);
+                        const sizeBits = dest.size * 8;
+                        const sizeMask = dest.size === 1 ? 0xFF : 0xFFFF;
+                        const signMask = dest.size === 1 ? 0x80 : 0x8000;
+                        const originalMsb = (value & signMask) !== 0;
+
+                        // Adjust count for byte operations
+                        if (dest.size === 1) {
+                            count = count % 9; // 8 bits + CF
+                        }
+
+                        if (count > 0) {
+                            for (let i = 0; i < count; i++) {
+                                const cf = this.getFlag('CF') ? 1 : 0;
+
+                                // Save the bit that will be shifted out to CF
+                                const newCf = value & 0x01;
+
+                                // Shift right and bring in old CF
+                                value = ((value >>> 1) | (cf << (sizeBits - 1))) & sizeMask;
+
+                                // Update CF with the bit that was shifted out
+                                this.setFlag('CF', newCf === 1);
+                            }
+
+                            // OF is set if the sign bit changed after the first rotation
+                            if (count === 1) {
+                                this.setFlag('OF', originalMsb !== ((value & signMask) !== 0));
+                            }
+
+                            this.writeMemory(dest.segment, dest.offset, value, dest.size);
+                        }
+                    } else {
+                        throw new Error(`Unsupported operand type for RCR: ${dest.type}`);
+                    }
+
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * Executes a block of assembly instructions on the Intel8086Emulator
+     * and returns a detailed history of CPU state changes.
+     *
+     * @param {Intel8086Emulator} cpu - Instance of the CPU emulator
+     * @param {string} codeBlock - Block of assembly instructions
+     * @param {Object} options - Optional settings
+     * @param {boolean} options.recordMemory - Whether to record memory changes (default: false)
+     * @param {boolean} options.stopOnHalt - Whether to stop execution on HLT instruction (default: false)
+     * @param {number} options.maxInstructions - Maximum number of instructions to execute (default: 1000)
+     * @returns {Array} - Array of state snapshots after each instruction execution
+     */
+    function executeAssemblyBlock(cpu, codeBlock, options = {}) {
+        // Default options
+        const settings = {
+            recordMemory: false,
+            stopOnHalt: false,
+            maxInstructions: 1000,
+            ...options
+        };
+
+        // Parse the code block into individual instructions and extract labels
+        const { instructions, labelMap } = parseAssemblyCode(codeBlock);
+
+        // Apply labels to the CPU
+        Object.assign(cpu.labels, labelMap);
+
+        // Initialize execution history
+        const executionHistory = [];
+        let instructionCount = 0;
+
+        // Execute each instruction
+        for (const instruction of instructions) {
+            // Skip empty instructions or pure comments
+            if (!instruction.trim() || instruction.trim().startsWith(';')) {
+                continue;
+            }
+
+            try {
+                // Execute the instruction
+                cpu.executeInstruction(instruction);
+
+                // Record the CPU state after execution
+                const stateSnapshot = captureState(cpu, settings.recordMemory);
+                executionHistory.push({
+                    instruction,
+                    state: stateSnapshot,
+                    cycleCount: cpu.cycles
+                });
+
+                // Check for execution limits or halt
+                instructionCount++;
+                if (instructionCount >= settings.maxInstructions) {
+                    executionHistory.push({
+                        note: 'Execution stopped: reached maximum instruction count'
+                    });
+                    break;
+                }
+
+                // Check if execution should stop based on CPU state
+                if (settings.stopOnHalt && !cpu.running) {
+                    executionHistory.push({
+                        note: 'Execution stopped: CPU halted'
+                    });
+                    break;
+                }
+            } catch (error) {
+                // Record execution error
+                executionHistory.push({
+                    instruction,
+                    error: error.message,
+                    state: captureState(cpu, settings.recordMemory)
+                });
+
+                break;
+            }
+        }
+
+        return executionHistory;
+    }
+
+    /**
+     * Parses assembly code and extracts instructions and labels
+     *
+     * @param {string} codeBlock - Block of assembly code
+     * @returns {Object} - Object containing instructions array and label map
+     */
+    function parseAssemblyCode(codeBlock) {
+        const instructions = [];
+        const labelMap = {};
+
+        // Split the code block into lines
+        const lines = codeBlock.split('\n');
+
+        // Process each line
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i].trim();
+
+            // Skip empty lines
+            if (!line) continue;
+
+            // Handle labels (format: LABEL:)
+            const labelMatch = line.match(/^([A-Za-z_][A-Za-z0-9_]*):(.*)$/);
+            if (labelMatch) {
+                const label = labelMatch[1];
+                const remainingCode = labelMatch[2].trim();
+
+                // Add label to the map (pointing to the next instruction index)
+                labelMap[label] = instructions.length;
+
+                // If there's code after the label on the same line, process it
+                if (remainingCode && !remainingCode.startsWith(';')) {
+                    instructions.push(remainingCode);
+                }
+            } else {
+                // Remove inline comments
+                const commentIndex = line.indexOf(';');
+                if (commentIndex !== -1) {
+                    line = line.substring(0, commentIndex).trim();
+                }
+
+                // Add the instruction if not empty after comment removal
+                if (line) {
+                    instructions.push(line);
+                }
+            }
+        }
+
+        return { instructions, labelMap };
+    }
+
+    /**
+     * Captures the current state of the CPU
+     *
+     * @param {Intel8086Emulator} cpu - Instance of the CPU emulator
+     * @param {boolean} includeMemory - Whether to include memory in the snapshot
+     * @returns {Object} - Object representing the CPU state
+     */
+    function captureState(cpu, includeMemory = false) {
+        // Create a deep copy of registers
+        const registers = {
+            // General purpose registers (16-bit)
+            AX: cpu.AX, BX: cpu.BX, CX: cpu.CX, DX: cpu.DX,
+            // General purpose registers (8-bit parts)
+            AH: cpu.AH, AL: cpu.AL,
+            BH: cpu.BH, BL: cpu.BL,
+            CH: cpu.CH, CL: cpu.CL,
+            DH: cpu.DH, DL: cpu.DL,
+            // Index and pointer registers
+            SI: cpu.getRegister('SI'),
+            DI: cpu.getRegister('DI'),
+            BP: cpu.getRegister('BP'),
+            SP: cpu.getRegister('SP'),
+            // Segment registers
+            CS: cpu.getRegister('CS'),
+            DS: cpu.getRegister('DS'),
+            ES: cpu.getRegister('ES'),
+            SS: cpu.getRegister('SS'),
+            // Instruction pointer
+            IP: cpu.getRegister('IP'),
+            // Flags register
+            FLAGS: cpu.getRegister('FLAGS')
+        };
+
+        // Create object with individual flags
+        const flags = {};
+        for (const flag in cpu.flagBits) {
+            flags[flag] = cpu.getFlag(flag);
+        }
+
+        // Basic state snapshot
+        const state = {
+            registers,
+            flags,
+            cycles: cpu.cycles
+        };
+
+        // Optionally include memory (be careful with this for performance)
+        if (includeMemory) {
+            // Create a copy of the active memory regions
+            // This is a simplified approach - a real implementation would be more selective
+            const memorySnapshot = {};
+
+            // Capture memory around the stack pointer (SS:SP)
+            const ssBase = cpu.getRegister('SS') << 4;
+            const spValue = cpu.getRegister('SP');
+            memorySnapshot.stack = captureMemoryRegion(cpu, ssBase, spValue, 32);
+
+            // Capture memory around the instruction pointer (CS:IP)
+            const csBase = cpu.getRegister('CS') << 4;
+            const ipValue = cpu.getRegister('IP');
+            memorySnapshot.code = captureMemoryRegion(cpu, csBase, ipValue, 32);
+
+            // Capture memory around the data segment pointer (DS:0)
+            const dsBase = cpu.getRegister('DS') << 4;
+            memorySnapshot.data = captureMemoryRegion(cpu, dsBase, 0, 32);
+
+            state.memory = memorySnapshot;
+        }
+
+        return state;
+    }
+
+    /**
+     * Captures a specific region of memory
+     *
+     * @param {Intel8086Emulator} cpu - Instance of the CPU emulator
+     * @param {number} segmentBase - Base address of the segment
+     * @param {number} offset - Offset from the segment base
+     * @param {number} size - Number of bytes to capture
+     * @returns {Object} - Object representing the memory region
+     */
+    function captureMemoryRegion(cpu, segmentBase, offset, size) {
+        const region = {};
+        const halfSize = Math.floor(size / 2);
+
+        // Determine start address (ensure it's within valid range)
+        const startOffset = Math.max(0, offset - halfSize);
+
+        // Capture bytes
+        for (let i = 0; i < size; i++) {
+            const currentOffset = (startOffset + i) & 0xFFFF;
+            const address = segmentBase + currentOffset;
+
+            // Only include if within the 1MB address space
+            if (address < 1024 * 1024) {
+                const addressHex = address.toString(16).padStart(5, '0').toUpperCase();
+                region[addressHex] = cpu.memory[address];
+            }
+        }
+
+        return region;
+    }
+
+    let cpu = new Intel8086Emulator();
+
+    let executionHistory = [];
+    let currentStep = 0;
+    let stepModeEnabled = false;
+
+    // Tabs handling
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Deactivate all tabs
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+
+            // Activate clicked tab
+            tab.classList.add('active');
+            const target = tab.dataset.tab;
+            document.getElementById(target).classList.add('active');
+        });
+    });
+
+    function enableStepMode(history) {
+        stepModeEnabled = true;
+        executionHistory = history;
+        currentStep = 0;
+
+        document.getElementById('stepControls').classList.add('active');
+        renderStep(currentStep);
+        updateStepCounter();
+    }
+
+    function disableStepMode() {
+        stepModeEnabled = false;
+        executionHistory = [];
+        currentStep = 0;
+
+        document.getElementById('stepControls').classList.remove('active');
+    }
+
+/*    function renderStep(stepIndex) {
+        if (stepIndex < 0 || stepIndex >= executionHistory.length) return;
+
+        const snapshot = executionHistory[stepIndex];
+        if (snapshot && snapshot.state) {
+            applyCpuSnapshot(snapshot.state);
+            updateUI(cpu);
+            updateLog(snapshot.instruction || `Step ${stepIndex + 1}`);
+        }
+    }
+*/
+    function renderStep(stepIndex) {
+        if (stepIndex < 0 || stepIndex >= executionHistory.length) return;
+
+        const snapshot = executionHistory[stepIndex];
+        if (snapshot && snapshot.state) {
+            applyCpuSnapshot(snapshot.state);
+            updateUI(cpu);
+            updateLog(snapshot.instruction || `Step ${stepIndex + 1}`);
+        }
+
+        // Highlight the current step
+        const steps = document.querySelectorAll('.execution-step');
+        steps.forEach((step, index) => {
+            step.classList.toggle('current', index === stepIndex);
+        });
+
+        // Scroll to current step smoothly
+        const currentStepDiv = document.querySelector('.execution-step.current');
+        if (currentStepDiv) {
+            currentStepDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+
+    function applyCpuSnapshot(state) {
+        for (const reg in state.registers) {
+            cpu.setRegister(reg, state.registers[reg]);
+        }
+        for (const flag in state.flags) {
+            cpu.setFlag(flag, state.flags[flag]);
+        }
+        cpu.cycles = state.cycles;
+    }
+
+    document.getElementById('stepForwardButton').addEventListener('click', () => {
+        if (!stepModeEnabled) return;
+        if (currentStep < executionHistory.length - 1) {
+            currentStep++;
+            renderStep(currentStep);
+            updateStepCounter();
+        }
+    });
+
+    document.getElementById('stepBackButton').addEventListener('click', () => {
+        if (!stepModeEnabled) return;
+        if (currentStep > 0) {
+            currentStep--;
+            renderStep(currentStep);
+            updateStepCounter();
+        }
+    });
+
+    function updateStepCounter() {
+        const stepCounter = document.getElementById('stepCounter');
+        stepCounter.textContent = `${currentStep + 1} / ${executionHistory.length}`;
+    }
+
+ /*   function updateLog(message) {
+        const log = document.getElementById('logOutput');
+        const entry = document.createElement('p');
+        entry.className = 'log-entry';
+        entry.textContent = `[STEP] ${message}`;
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
+*/
+    function updateLog(message) {
+        const log = document.getElementById('logOutput');
+        const entry = document.createElement('p');
+        entry.className = 'log-entry';
+        entry.textContent = `[STEP] ${message}`;
+        log.appendChild(entry);
+
+        // Smooth scroll to bottom
+        setTimeout(() => {
+            log.scrollTop = log.scrollHeight;
+        }, 50);
+    }
+
+
+    function renderExecutionHistory(history) {
+        const historyContainer = document.getElementById('historyContainer');
+        historyContainer.innerHTML = '';
+
+        history.forEach((entry, index) => {
+            const stepDiv = document.createElement('div');
+            stepDiv.className = 'execution-step';
+            if (index === 0) stepDiv.classList.add('current');
+
+            const instructionDisplay = document.createElement('div');
+            instructionDisplay.className = 'instruction-display';
+            instructionDisplay.textContent = entry.instruction || `Note: ${entry.note}`;
+
+            const stateDisplay = document.createElement('div');
+            stateDisplay.className = 'state-display';
+            stateDisplay.innerHTML = `
+            IP: ${entry.state.registers.IP.toString(16).padStart(4, '0').toUpperCase()}h |
+            AX: ${entry.state.registers.AX.toString(16).padStart(4, '0').toUpperCase()}h |
+            Flags: ${JSON.stringify(entry.state.flags)}
+        `;
+
+            stepDiv.appendChild(instructionDisplay);
+            stepDiv.appendChild(stateDisplay);
+
+            historyContainer.appendChild(stepDiv);
+        });
+
+        // After filling all steps
+        setTimeout(() => {
+            const container = document.getElementById('historyContainer');
+            container.scrollTop = container.scrollHeight;
+        }, 50);
+
+    }
+
+    function renderMemoryView(snapshot) {
+        const memoryView = document.getElementById('memoryView');
+
+        if (!snapshot.memory) {
+            memoryView.innerHTML = `<p>Memory recording was not enabled.</p>`;
+            return;
+        }
+
+        let html = '';
+
+        if (snapshot.memory.stack) {
+            html += `<h4>Stack Segment (SS:SP)</h4><pre>${formatMemory(snapshot.memory.stack)}</pre>`;
+        }
+
+        if (snapshot.memory.code) {
+            html += `<h4>Code Segment (CS:IP)</h4><pre>${formatMemory(snapshot.memory.code)}</pre>`;
+        }
+
+        if (snapshot.memory.data) {
+            html += `<h4>Data Segment (DS:0)</h4><pre>${formatMemory(snapshot.memory.data)}</pre>`;
+        }
+
+        memoryView.innerHTML = html;
+    }
+
+    function formatMemory(memoryRegion) {
+        let output = '';
+        for (const address in memoryRegion) {
+            output += `${address}: ${memoryRegion[address].toString(16).padStart(2, '0').toUpperCase()}h\n`;
+        }
+        return output;
+    }
+
+    document.getElementById('executeButton').addEventListener('click', () => {
+        const asmCode = document.getElementById('assemblyCode').value;
+        const recordMemory = document.getElementById('recordMemory').checked;
+        const stepMode = document.getElementById('stepMode').checked;
+
+        // Reset CPU before execution
+        cpu = new Intel8086Emulator();
+
+        // Execute the code
+        const executionHistory = executeAssemblyBlock(cpu, asmCode, { recordMemory });
+
+
+        if (!stepMode) {
+            renderExecutionHistory(executionHistory);
+        }
+
+        // TODO: render executionHistory to UI
+        updateUI(cpu);
+
+        // TODO: enable step mode if needed
+        if (stepMode) {
+            enableStepMode(executionHistory);
+        }
+
+        if (!stepMode && executionHistory.length > 0) {
+            renderMemoryView(executionHistory[executionHistory.length - 1].state);
+        }
+
+    });
+
+    document.getElementById('resetButton').addEventListener('click', () => {
+        cpu = new Intel8086Emulator();
+        clearLog();
+        updateUI(cpu);
+    });
+
+    function updateUI(cpu) {
+        updateRegisters(cpu);
+        updateFlags(cpu);
+        updateCycleCount(cpu);
+        updateCpuStatus('Ready');
+    }
+
+    function updateRegisters(cpu) {
+        const gpRegisters = document.getElementById('gpRegisters');
+        const segmentRegisters = document.getElementById('segmentRegisters');
+        const pointerRegisters = document.getElementById('pointerRegisters');
+
+        gpRegisters.innerHTML = `
+        ${renderRegister('AX', cpu.AX)}
+        ${renderRegister('BX', cpu.BX)}
+        ${renderRegister('CX', cpu.CX)}
+        ${renderRegister('DX', cpu.DX)}
+    `;
+
+        segmentRegisters.innerHTML = `
+        ${renderRegister('CS', cpu.getRegister('CS'))}
+        ${renderRegister('DS', cpu.getRegister('DS'))}
+        ${renderRegister('ES', cpu.getRegister('ES'))}
+        ${renderRegister('SS', cpu.getRegister('SS'))}
+    `;
+
+        pointerRegisters.innerHTML = `
+        ${renderRegister('SI', cpu.getRegister('SI'))}
+        ${renderRegister('DI', cpu.getRegister('DI'))}
+        ${renderRegister('BP', cpu.getRegister('BP'))}
+        ${renderRegister('SP', cpu.getRegister('SP'))}
+    `;
+    }
+
+    function renderRegister(name, value) {
+        return `<div class="register-box">
+                <div class="register-name">${name}</div>
+                <div class="register-value">${value.toString(16).padStart(4, '0').toUpperCase()}h</div>
+            </div>`;
+    }
+
+    function updateFlags(cpu) {
+        const flagsDisplay = document.getElementById('flagsDisplay');
+        flagsDisplay.innerHTML = '';
+
+        for (const flag in cpu.flagBits) {
+            const isSet = cpu.getFlag(flag);
+            const flagElement = document.createElement('div');
+            flagElement.classList.add('flag-item', isSet ? 'flag-true' : 'flag-false');
+            flagElement.textContent = flag;
+            flagsDisplay.appendChild(flagElement);
+        }
+    }
+
+    function updateCycleCount(cpu) {
+        document.getElementById('cycleCount').textContent = cpu.cycles;
+    }
+
+    function updateCpuStatus(status) {
+        document.getElementById('cpuStatus').textContent = status;
+    }
+
+    function clearLog() {
+        document.getElementById('logOutput').innerHTML = '<p class="log-entry">System reset. Ready to execute instructions.</p>';
+    }
+
+    const exampleCodes = {
+        basic: `MOV AX, 1234h
+MOV BX, 5678h
+ADD AX, BX`,
+        arithmetic: `MOV AX, 5
+MOV BX, 3
+SUB AX, BX
+MUL BX
+DIV BX`,
+        loops: `MOV CX, 5
+startLoop:
+DEC CX
+JNZ startLoop`,
+        conditionals: `MOV AX, 10
+CMP AX, 5
+JL lessThanFive
+MOV AX, 20
+JMP end
+lessThanFive:
+MOV AX, 1
+end:`
+    };
+
+    document.getElementById('exampleSelect').addEventListener('change', (e) => {
+        const value = e.target.value;
+        if (value && exampleCodes[value]) {
+            document.getElementById('assemblyCode').value = exampleCodes[value];
+        }
+    });
+</script>
