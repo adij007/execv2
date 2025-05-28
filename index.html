@@ -466,7 +466,6 @@ ADD AX, BX
 </div>
 
 <script>
-    // Let's implement a complete 8086 emulator with proper parsing and execution
     class Intel8086Emulator {
         constructor() {
             // Initialize registers with getters/setters for 8-bit access
@@ -1714,18 +1713,7 @@ ADD AX, BX
         }
     }
 
-    /**
-     * Executes a block of assembly instructions on the Intel8086Emulator
-     * and returns a detailed history of CPU state changes.
-     *
-     * @param {Intel8086Emulator} cpu - Instance of the CPU emulator
-     * @param {string} codeBlock - Block of assembly instructions
-     * @param {Object} options - Optional settings
-     * @param {boolean} options.recordMemory - Whether to record memory changes (default: false)
-     * @param {boolean} options.stopOnHalt - Whether to stop execution on HLT instruction (default: false)
-     * @param {number} options.maxInstructions - Maximum number of instructions to execute (default: 1000)
-     * @returns {Array} - Array of state snapshots after each instruction execution
-     */
+    // Executes a block of assembly instructions on the Intel8086Emulator
     function executeAssemblyBlock(cpu, codeBlock, options = {}) {
         // Default options
         const settings = {
@@ -1795,12 +1783,7 @@ ADD AX, BX
         return executionHistory;
     }
 
-    /**
-     * Parses assembly code and extracts instructions and labels
-     *
-     * @param {string} codeBlock - Block of assembly code
-     * @returns {Object} - Object containing instructions array and label map
-     */
+    // Parses assembly code and extracts instructions and labels
     function parseAssemblyCode(codeBlock) {
         const instructions = [];
         const labelMap = {};
@@ -1845,13 +1828,7 @@ ADD AX, BX
         return { instructions, labelMap };
     }
 
-    /**
-     * Captures the current state of the CPU
-     *
-     * @param {Intel8086Emulator} cpu - Instance of the CPU emulator
-     * @param {boolean} includeMemory - Whether to include memory in the snapshot
-     * @returns {Object} - Object representing the CPU state
-     */
+    // Captures the current state of the CPU
     function captureState(cpu, includeMemory = false) {
         // Create a deep copy of registers
         const registers = {
@@ -1917,15 +1894,7 @@ ADD AX, BX
         return state;
     }
 
-    /**
-     * Captures a specific region of memory
-     *
-     * @param {Intel8086Emulator} cpu - Instance of the CPU emulator
-     * @param {number} segmentBase - Base address of the segment
-     * @param {number} offset - Offset from the segment base
-     * @param {number} size - Number of bytes to capture
-     * @returns {Object} - Object representing the memory region
-     */
+    // Captures a specific region of memory
     function captureMemoryRegion(cpu, segmentBase, offset, size) {
         const region = {};
         const halfSize = Math.floor(size / 2);
@@ -1989,17 +1958,6 @@ ADD AX, BX
         document.getElementById('stepControls').classList.remove('active');
     }
 
-/*    function renderStep(stepIndex) {
-        if (stepIndex < 0 || stepIndex >= executionHistory.length) return;
-
-        const snapshot = executionHistory[stepIndex];
-        if (snapshot && snapshot.state) {
-            applyCpuSnapshot(snapshot.state);
-            updateUI(cpu);
-            updateLog(snapshot.instruction || `Step ${stepIndex + 1}`);
-        }
-    }
-*/
     function renderStep(stepIndex) {
         if (stepIndex < 0 || stepIndex >= executionHistory.length) return;
 
@@ -2056,16 +2014,6 @@ ADD AX, BX
         const stepCounter = document.getElementById('stepCounter');
         stepCounter.textContent = `${currentStep + 1} / ${executionHistory.length}`;
     }
-
- /*   function updateLog(message) {
-        const log = document.getElementById('logOutput');
-        const entry = document.createElement('p');
-        entry.className = 'log-entry';
-        entry.textContent = `[STEP] ${message}`;
-        log.appendChild(entry);
-        log.scrollTop = log.scrollHeight;
-    }
-*/
     function updateLog(message) {
         const log = document.getElementById('logOutput');
         const entry = document.createElement('p');
